@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "🧠 Open-source long-term memory for AI agents"
 readme = "README.md"
 license = {text = "MIT"}
-authors = [{name = "Yul", email = "yul@example.com"}]
+authors = [{name = "MemFree Community"}]
 requires-python = ">=3.10"
 keywords = ["ai", "agent", "memory", "long-term-memory", "llm", "openclaw", "hermes"]
 classifiers = [

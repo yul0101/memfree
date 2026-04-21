@@ -20,7 +20,7 @@ from pathlib import Path
 from datetime import datetime
 
 FACTS_PATH   = Path.home() / ".agent-memory" / "facts.json"
-SOUL_PATH    = Path.home() / ".hermes" / "SOUL.md"
+SOUL_PATH    = Path.home() / ".workbuddy" / "SOUL.md"
 LOCK_PATH    = Path.home() / ".agent-memory" / ".sync.lock"
 MARKER_START = "<!-- SHARED_MEMORY_START -->"
 MARKER_END   = "<!-- SHARED_MEMORY_END -->"

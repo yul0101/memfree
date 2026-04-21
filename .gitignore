@@ -34,3 +34,5 @@ Thumbs.db
 
 # Install destination
 ~/.memfree
+web_ui.html
+facts.py

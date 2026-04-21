@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MemFree — Agent Memory Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #09090b;
+      --surface:  #18181b;
+      --card:     #27272a;
+      --border:   #3f3f46;
+      --muted:    #71717a;
+      --text:     #fafafa;
+      --subtext:  #a1a1aa;
+      --accent:   #10b981;
+      --accent-h: #059669;
+      --danger:   #f43f5e;
+      --warn:     #f59e0b;
+      --r-sm:  8px;
+      --r-md:  14px;
+      --r-lg:  20px;
+    }
+
+    body {
+      font-family: 'Geist', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* Header */
+    .header { margin-bottom: 40px; }
+    .header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -.04em;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+    .header p { color: var(--muted); font-size: .9rem; }
+
+    /* Stats Bar */
+    .stats-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+    .stat-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      font-size: .8rem;
+      color: var(--subtext);
+    }
+    .stat-chip .val {
+      font-weight: 600;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-chip.emerald { border-color: #065f46; }
+    .stat-chip.emerald .val { color: var(--accent); }
+    .stat-chip.danger { border-color: #9f1239; }
+    .stat-chip.danger .val { color: var(--danger); }
+
+    /* Add Form */
+    .add-form {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 20px;
+      margin-bottom: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .add-form h2 {
+      font-size: .8rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .input-stack { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .input-stack label {
+      font-size: .75rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    input[type="text"], select {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      color: var(--text);
+      font-family: inherit;
+      font-size: .9rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color .2s;
+      width: 100%;
+    }
+    input[type="text"]:focus, select:focus { border-color: var(--accent); }
+    input[type="text"]::placeholder { color: var(--muted); }
+    select { cursor: pointer; }
+
+    .imp-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 4px 0;
+    }
+    .imp-row label {
+      font-size: .75rem;
+      color: var(--muted);
+      font-weight: 500;
+      min-width: 70px;
+    }
+    input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+    .imp-val {
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--accent);
+      min-width: 32px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: var(--r-sm);
+      font-family: inherit;
+      font-size: .875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s cubic-bezier(.16,1,.3,1);
+      white-space: nowrap;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-h); transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0) scale(.98); }
+    .btn-primary:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    /* Toolbar */
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+    .search-wrap { flex: 1; position: relative; }
+    .search-wrap svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+    }
+    .search-wrap input { padding-left: 38px; }
+    .filter-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 3px;
+    }
+    .filter-tab {
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: .78rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+      border: none;
+      background: transparent;
+      font-family: inherit;
+    }
+    .filter-tab.active { background: var(--card); color: var(--text); }
+    .filter-tab:hover:not(.active) { color: var(--subtext); }
+
+    /* Fact List */
+    .fact-list { display: flex; flex-direction: column; gap: 12px; }
+
+    /* Fact Card */
+    .fact-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 18px 20px;
+      transition: border-color .2s, opacity .3s;
+    }
+    .fact-card:hover { border-color: #52525b; }
+    .fact-card.invalidated { opacity: .35; }
+    .fact-card.invalidated .card-text { text-decoration: line-through; }
+    .fact-card.high-imp { border-left: 3px solid var(--accent); }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .card-text { font-size: .95rem; line-height: 1.65; color: var(--text); flex: 1; }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 100px;
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .03em;
+    }
+    .badge-identity  { background: #1e3a5f; color: #93c5fd; }
+    .badge-preference { background: #1f2937; color: #d1d5db; }
+    .badge-tool     { background: #1a2e1a; color: #86efac; }
+    .badge-project  { background: #2e1a2e; color: #d8b4fe; }
+    .badge-lesson   { background: #2e2a1a; color: #fcd34d; }
+    .badge-thread   { background: #1a2e2e; color: #67e8f9; }
+    .badge-behavior { background: #2e1a1a; color: #fca5a5; }
+    .badge-work     { background: #1a1a2e; color: #a5b4fc; }
+    .badge-general  { background: #27272a; color: #71717a; }
+    .badge-test     { background: #2e2727; color: #f87171; }
+
+    .imp-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .imp-bar {
+      flex: 1;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      max-width: 100px;
+    }
+    .imp-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width .4s ease;
+    }
+    .imp-label {
+      font-size: .72rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      min-width: 30px;
+    }
+
+    .card-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #27272a;
+    }
+    .card-time { font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .card-actions { display: flex; gap: 6px; }
+    .fbk-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      background: transparent;
+      color: var(--muted);
+      font-size: .72rem;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .fbk-btn:hover { border-color: var(--muted); color: var(--text); }
+    .fbk-btn.pos:hover { border-color: #065f46; color: var(--accent); background: #052e16; }
+    .fbk-btn.neg:hover { border-color: #9f1239; color: var(--danger); background: #4c0519; }
+
+    /* Empty / Loading */
+    .empty-state {
+      text-align: center;
+      padding: 64px 24px;
+      color: var(--muted);
+    }
+    .empty-state svg { margin-bottom: 16px; opacity: .35; }
+    .empty-state p { font-size: .9rem; }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 20px;
+      border-radius: 100px;
+      font-size: .85rem;
+      font-weight: 500;
+      opacity: 0;
+      transition: all .3s cubic-bezier(.16,1,.3,1);
+      pointer-events: none;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.ok { border-color: #065f46; color: var(--accent); }
+    #toast.err { border-color: #9f1239; color: var(--danger); }
+
+    /* Shimmer */
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface) 25%, var(--card) 50%, var(--surface) 75%);
+      background-size: 800px 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .container { padding: 24px 16px 60px; }
+      .input-row { flex-direction: column; }
+      .btn { width: 100%; }
+      .stats-bar { gap: 8px; }
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .filter-tabs { overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <header class="header">
+    <h1>Memory Studio</h1>
+    <p>Agent Long-term Memory Manager &mdash; facts.json visual interface</p>
+  </header>
+
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat-chip emerald"><span class="val" id="stat-total">—</span> Total</div>
+    <div class="stat-chip"><span class="val" id="stat-valid">—</span> Valid</div>
+    <div class="stat-chip danger"><span class="val" id="stat-expired">—</span> Expired</div>
+    <div class="stat-chip"><span class="val" id="stat-size">—</span> File size</div>
+  </div>
+
+  <div class="add-form">
+    <h2>Add New Fact</h2>
+    <div class="input-row">
+      <div class="input-stack" style="flex:2">
+        <label for="input-text">What to remember</label>
+        <input type="text" id="input-text" placeholder="e.g. 用户Yul偏好中文沟通，简洁直接" autocomplete="off">
+      </div>
+      <div class="input-stack" style="flex:1">
+        <label for="input-cat">Category</label>
+        <select id="input-cat">
+          <option value="preference">Preference</option>
+          <option value="identity">Identity</option>
+          <option value="tool">Tool</option>
+          <option value="project">Project</option>
+          <option value="lesson">Lesson</option>
+          <option value="thread">Thread</option>
+          <option value="behavior">Behavior</option>
+          <option value="work">Work</option>
+          <option value="general">General</option>
+          <option value="test">Test</option>
+        </select>
+      </div>
+    </div>
+    <div class="imp-row">
+      <label>Importance</label>
+      <input type="range" id="input-imp" min="0" max="1" step="0.05" value="0.7">
+      <span class="imp-val" id="imp-display">0.70</span>
+    </div>
+    <div class="input-row">
+      <button class="btn btn-primary" id="btn-add" onclick="addFact()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Fact
+      </button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="search-input" placeholder="Search facts..." oninput="renderFacts()">
+    </div>
+    <div class="filter-tabs" id="filter-tabs">
+      <button class="filter-tab active" data-cat="all" onclick="setFilter('all')">All</button>
+      <button class="filter-tab" data-cat="identity" onclick="setFilter('identity')">Identity</button>
+      <button class="filter-tab" data-cat="preference" onclick="setFilter('preference')">Preference</button>
+      <button class="filter-tab" data-cat="tool" onclick="setFilter('tool')">Tool</button>
+      <button class="filter-tab" data-cat="project" onclick="setFilter('project')">Project</button>
+      <button class="filter-tab" data-cat="lesson" onclick="setFilter('lesson')">Lesson</button>
+      <button class="filter-tab" data-cat="thread" onclick="setFilter('thread')">Thread</button>
+    </div>
+  </div>
+
+  <div class="fact-list" id="fact-list"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const API = "http://localhost:19099";
+  let allFacts = [];
+  let activeCat = "all";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadStats();
+    loadFacts();
+    const slider = document.getElementById("input-imp");
+    const display = document.getElementById("imp-display");
+    slider.addEventListener("input", () => {
+      display.textContent = parseFloat(slider.value).toFixed(2);
+    });
+    document.getElementById("input-text").addEventListener("keydown", e => {
+      if (e.key === "Enter") addFact();
+    });
+  });
+
+  async function api(path, method, body) {
+    const res = await fetch(API + path, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || res.statusText);
+    }
+    return res.json();
+  }
+
+  async function loadStats() {
+    try {
+      const d = await api("/stats", "GET");
+      document.getElementById("stat-total").textContent  = d.total || 0;
+      document.getElementById("stat-valid").textContent = d.valid || 0;
+      document.getElementById("stat-expired").textContent = d.expired || 0;
+      document.getElementById("stat-size").textContent  = (d.file_size_kb || 0) + " KB";
+    } catch (_) { /* server not running */ }
+  }
+
+  async function loadFacts() {
+    renderSkeletons();
+    try {
+      const d = await api("/facts", "GET");
+      allFacts = d.facts || [];
+      sortFacts();
+      renderFacts();
+    } catch (_) {
+      document.getElementById("fact-list").innerHTML = emptyState(
+        "Server unavailable &mdash; run <code>python3 ~/.agent-memory/mem0_server.py</code>"
+      );
+    }
+  }
+
+  async function addFact() {
+    const textEl = document.getElementById("input-text");
+    const catEl  = document.getElementById("input-cat");
+    const impEl  = document.getElementById("input-imp");
+    const btn    = document.getElementById("btn-add");
+    const text   = textEl.value.trim();
+    if (!text) { toast("Enter some text first", "err"); return; }
+    btn.disabled = true;
+    try {
+      await api("/facts/add", "POST", {
+        text,
+        category: catEl.value,
+        importance: parseFloat(impEl.value),
+      });
+      textEl.value = "";
+      toast("Fact added", "ok");
+      await loadStats();
+      await loadFacts();
+    } catch (e) {
+      toast("Failed: " + e.message, "err");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function giveFeedback(id, delta) {
+    try {
+      const d = await api("/facts/feedback", "POST", { id, delta });
+      const f = allFacts.find(x => x.id === id);
+      if (f) {
+        f.importance   = d.fact.importance;
+        f.access_count = d.fact.access_count;
+      }
+      toast(delta > 0 ? "+0.1 importance" : "-0.1 importance", "ok");
+      sortFacts();
+      renderFacts();
+    } catch (_) { toast("Feedback failed", "err"); }
+  }
+
+  function sortFacts() {
+    allFacts.sort((a, b) => {
+      if (a.invalidated !== b.invalidated) return a.invalidated ? 1 : -1;
+      return dynImp(b) - dynImp(a) || new Date(b.created_at) - new Date(a.created_at);
+    });
+  }
+
+  function dynImp(f) {
+    const base = f.importance || 0.5;
+    const acc  = f.access_count || 0;
+    return base * (1 + (acc === 0 ? 0 : Math.log(1 + acc)));
+  }
+
+  function renderFacts() {
+    const q = document.getElementById("search-input").value.toLowerCase().trim();
+    const filtered = allFacts.filter(f => {
+      if (activeCat !== "all" && f.category !== activeCat) return false;
+      if (q && !f.text.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    const el = document.getElementById("fact-list");
+    if (filtered.length === 0) {
+      el.innerHTML = emptyState("No facts found &mdash; add one above or adjust the filter");
+      return;
+    }
+    el.innerHTML = filtered.map(f => cardHTML(f)).join("");
+  }
+
+  function renderSkeletons() {
+    const el = document.getElementById("fact-list");
+    const tpl = `<div class="fact-card"><div class="skeleton" style="height:18px;width:65%;margin-bottom:10px"></div><div class="skeleton" style="height:14px;width:85%;margin-bottom:6px"></div><div class="skeleton" style="height:14px;width:40%"></div></div>`;
+    el.innerHTML = tpl + tpl + tpl;
+  }
+
+  function cardHTML(f) {
+    const di     = dynImp(f);
+    const impPct = Math.round((f.importance || 0.5) * 100);
+    const isHigh = di >= 0.8;
+    const inv    = f.invalidated;
+    const badge  = `<span class="badge badge-${f.category || "general"}">${f.category || "general"}</span>`;
+    const date   = f.created_at
+      ? new Date(f.created_at).toLocaleDateString("zh-CN", {month:"short",day:"numeric"})
+      : "";
+    const hitTxt = f.access_count ? ` &middot; hit &times;${f.access_count}` : "";
+
+    if (inv) {
+      return `<div class="fact-card invalidated">
+        <div class="card-text">${escHtml(f.text)}</div>
+        <div class="card-meta">${badge}
+          <span style="font-size:.72rem;color:var(--danger);padding:3px 8px;border:1px solid #9f1239;border-radius:100px">${escHtml(f.invalidated_reason || "Invalidated")}</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-time">${date}${hitTxt}</span>
+        </div>
+      </div>`;
+    }
+
+    return `<div class="fact-card${isHigh ? " high-imp" : ""}">
+      <div class="card-text">${escHtml(f.text)}</div>
+      <div class="card-meta">${badge}
+        <div class="imp-bar-wrap">
+          <div class="imp-bar"><div class="imp-fill" style="width:${impPct}%"></div></div>
+          <span class="imp-label">${impPct}%</span>
+          <span class="imp-label" style="color:var(--accent);font-weight:600" title="dynamic importance">&times;${di.toFixed(2)}</span>
+        </div>
+      </div>
+      <div class="card-bottom">
+        <span class="card-time">${date}${hitTxt}</span>
+        <div class="card-actions">
+          <button class="fbk-btn pos" onclick='giveFeedback("${f.id}", 0.1)' title="This fact is correct">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+            Correct
+          </button>
+          <button class="fbk-btn neg" onclick='giveFeedback("${f.id}", -0.1)' title="This fact is wrong">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            Wrong
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function emptyState(msg) {
+    return `<div class="empty-state">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <p>${msg}</p>
+    </div>`;
+  }
+
+  function setFilter(cat) {
+    activeCat = cat;
+    document.querySelectorAll(".filter-tab").forEach(t => {
+      t.classList.toggle("active", t.dataset.cat === cat);
+    });
+    renderFacts();
+  }
+
+  let toastTimer;
+  function toast(msg, type = "ok") {
+    const el = document.getElementById("toast");
+    el.innerHTML = msg;
+    el.className = `show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = ""; }, 2800);
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+</script>
+</body>
+</html>

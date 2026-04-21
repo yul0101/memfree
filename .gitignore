@@ -1,0 +1,36 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+
+# Test coverage
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Backup and log files
+backups/
+logs/
+
+# Personal data — NEVER commit
+facts.json
+facts.md
+db/
+memory/
+
+# Environment
+.env
+.python-version
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Install destination
+~/.memfree

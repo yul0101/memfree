@@ -76,7 +76,7 @@ class FactCache:
             self._atime[key] = time.time()
             return data
 
-    def set(self, key: str = "facts", data: list = None):
+    def set(self, data: list, key: str = "facts"):
         with self._lock:
             self._cache[key] = (data, time.time())
             self._atime[key] = time.time()
